@@ -36,16 +36,16 @@ export default function Home() {
       {/* Navbar */}
       <nav className="w-full relative z-10 glass-panel border-x-0 border-t-0 rounded-none px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
             <Video size={18} className="text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight">Meet<span className="text-primary">Edu</span></span>
+          <span className="font-bold text-xl tracking-tight hidden xs:block">Meet<span className="text-primary">Edu</span></span>
         </div>
-        <div className="flex gap-4">
-          <Link href="/login" className="px-5 py-2 text-sm font-medium hover:text-primary transition-colors">
+        <div className="flex gap-2 sm:gap-4 font-medium text-sm">
+          <Link href="/login" className="px-3 sm:px-5 py-2 hover:text-primary transition-colors">
             Sign In
           </Link>
-          <Link href="/register" className="px-5 py-2 text-sm font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all">
+          <Link href="/register" className="px-3 sm:px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all">
             Sign Up
           </Link>
         </div>
@@ -69,38 +69,38 @@ export default function Home() {
             <span className="text-xs font-medium text-primary-light">Next-Gen Virtual Classrooms</span>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1]">
+          <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-white">
             Learn & Connect <br/> 
             without <span className="text-gradient">Boundaries.</span>
           </motion.h1>
           
-          <motion.p variants={itemVariants} className="text-gray-400 text-lg leading-relaxed">
+          <motion.p variants={itemVariants} className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-lg">
             Experience pristine video quality, interactive tools, and a distraction-free environment built exclusively for the modern student.
           </motion.p>
           
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 mt-4">
+          <motion.div variants={itemVariants} className="flex flex-col xs:flex-row gap-4 mt-4 w-full">
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-xl font-medium tracking-wide bg-primary text-white shadow-neon-primary hover:shadow-[0_0_25px_rgba(227,89,39,0.7)] transition-all"
+              className="px-8 py-4 rounded-xl font-medium tracking-wide bg-primary text-white shadow-neon-primary hover:shadow-[0_0_25px_rgba(227,89,39,0.7)] transition-all whitespace-nowrap"
             >
               <Link href="/dashboard">Start a Meeting</Link>
             </motion.button>
-            <div className="flex items-center glass-panel px-2 py-1 flex-1 max-w-[280px]">
-              <div className="w-10 h-full flex items-center justify-center text-gray-400">
+            <div className="flex items-center glass-panel px-2 py-1 flex-1 min-w-0">
+              <div className="w-10 h-full flex items-center justify-center text-gray-400 shrink-0">
                 <Video size={18} />
               </div>
               <input 
                 type="text" 
-                placeholder="Enter meeting code" 
-                className="bg-transparent border-none outline-none text-white w-full pr-2 placeholder:text-gray-500"
+                placeholder="Code" 
+                className="bg-transparent border-none outline-none text-white w-full pr-2 placeholder:text-gray-500 text-sm min-w-0"
                 value={meetingCode}
                 onChange={(e) => setMeetingCode(e.target.value)}
               />
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors shrink-0"
                 onClick={() => {
                   const extractedCode = meetingCode.includes('/') ? meetingCode.split('/').pop() : meetingCode;
                   if (extractedCode) router.push(`/room/${extractedCode}`);

@@ -22,15 +22,15 @@ export const initSocket = (server: HttpServer) => {
 
       // WebRTC Signaling
       socket.on('offer', (payload: { target: string, caller: string, sdp: RTCSessionDescriptionInit }) => {
-        io.to(payload.target).emit('offer', payload);
+        io.to(payload.target).emit('offer', { ...payload, from: socket.id });
       });
 
       socket.on('answer', (payload: { target: string, caller: string, sdp: RTCSessionDescriptionInit }) => {
-        io.to(payload.target).emit('answer', payload);
+        io.to(payload.target).emit('answer', { ...payload, from: socket.id });
       });
 
       socket.on('ice-candidate', (incoming: { target: string, candidate: RTCIceCandidateInit }) => {
-        io.to(incoming.target).emit('ice-candidate', incoming.candidate);
+        io.to(incoming.target).emit('ice-candidate', { candidate: incoming.candidate, from: socket.id });
       });
 
       // Chat and UI events

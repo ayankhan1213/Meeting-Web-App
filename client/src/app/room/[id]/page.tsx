@@ -7,10 +7,19 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
+
 export default function RoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const roomId = resolvedParams.id;
-  const { localStream, remoteStreams } = useWebRTC(roomId);
+  const { 
+    localStream, 
+    remoteStreams, 
+    messages, 
+    sendMessage,
+    participantStatus,
+    toggleRemoteMute,
+    toggleRemoteVideo 
+  } = useWebRTC(roomId);
   const router = useRouter();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -18,7 +27,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [activeTab, setActiveTab] = useState<"none" | "chat" | "users">("none");
   const [copied, setCopied] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [messages, setMessages] = useState<{sender: string, text: string}[]>([{sender: "System", text: "Welcome to the meeting room!"}]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -30,19 +38,23 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   const toggleMute = () => {
     if (localStream) {
+      const newState = !isMuted;
       localStream.getAudioTracks().forEach(track => {
-        track.enabled = !track.enabled;
+        track.enabled = !newState;
       });
-      setIsMuted(!isMuted);
+      setIsMuted(newState);
+      toggleRemoteMute(newState);
     }
   };
 
   const toggleVideo = () => {
     if (localStream) {
+      const newState = !isVideoOff;
       localStream.getVideoTracks().forEach(track => {
-        track.enabled = !track.enabled;
+        track.enabled = !newState;
       });
-      setIsVideoOff(!isVideoOff);
+      setIsVideoOff(newState);
+      toggleRemoteVideo(newState);
     }
   };
 
@@ -55,7 +67,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const handleSendMessage = (e: any) => {
     e.preventDefault();
     if(chatMessage.trim()) {
-      setMessages([...messages, { sender: "You", text: chatMessage }]);
+      sendMessage(chatMessage, "You");
       setChatMessage("");
     }
   };
@@ -65,44 +77,46 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
       
       {/* Top Bar */}
-      <header className="h-16 glass-panel border-x-0 border-t-0 rounded-none px-6 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="font-semibold text-lg tracking-wide hidden sm:block">Meeting: <span className="text-secondary">{roomId}</span></h1>
+      <header className="h-16 glass-panel border-x-0 border-t-0 rounded-none px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 flex-1">
+          <h1 className="font-semibold text-base sm:text-lg tracking-wide hidden xs:block truncate max-w-[120px] sm:max-w-none">
+            Meeting: <span className="text-secondary">{roomId}</span>
+          </h1>
           <button 
             onClick={handleCopyLink}
-            className="flex items-center gap-2 px-3 py-1.5 rounded bg-primary/20 hover:bg-primary/30 text-primary text-xs font-medium border border-primary/20 transition-colors"
+            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] sm:text-xs font-medium border border-primary/20 transition-colors shrink-0"
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "Link Copied!" : "Copy Joining Link"}
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+            <span className="hidden xs:inline">{copied ? "Link Copied!" : "Copy Link"}</span>
+            {!copied && <span className="xs:hidden">Copy</span>}
           </button>
-          <div className="px-2 py-1 rounded bg-red-500/10 text-red-500 text-xs font-medium border border-red-500/20 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+          <div className="px-2 py-1 rounded bg-red-500/10 text-red-500 text-[10px] sm:text-xs font-medium border border-red-500/20 flex items-center gap-1 sm:gap-2 shrink-0">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 animate-pulse"></span>
             REC
           </div>
         </div>
         
-        {/* Animated Avatar / Audio indicator */}
-        <div className="flex gap-2 z-50">
-           <button onClick={() => setActiveTab(activeTab === 'users' ? 'none' : 'users')} className={`glass-panel p-2 transition ${activeTab === 'users' ? 'bg-white/20 text-white' : 'hover:bg-white/10'}`}>
+        <div className="flex gap-1.5 sm:gap-2 z-50">
+           <button onClick={() => setActiveTab(activeTab === 'users' ? 'none' : 'users')} className={`glass-panel p-2 transition ${activeTab === 'users' ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-gray-300'}`}>
               <UsersIcon />
            </button>
-           <button onClick={() => setActiveTab(activeTab === 'chat' ? 'none' : 'chat')} className={`glass-panel p-2 transition ${activeTab === 'chat' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-primary'}`}>
+           <button onClick={() => setActiveTab(activeTab === 'chat' ? 'none' : 'chat')} className={`glass-panel p-2 transition ${activeTab === 'chat' ? 'bg-primary/20 text-primary border-primary/50' : 'hover:bg-white/10 text-primary'}`}>
               <MessageSquare size={20} />
            </button>
         </div>
       </header>
 
       {/* Main Content: Video Grid */}
-      <main className="flex-1 p-4 sm:p-6 overflow-hidden flex gap-6 relative z-10">
+      <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-hidden flex gap-0 sm:gap-6 relative z-10">
         
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr h-full overflow-y-auto pr-2 pb-20 custom-scrollbar">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4 auto-rows-fr h-full overflow-y-auto pr-1 sm:pr-2 pb-24 sm:pb-20 custom-scrollbar">
           
           {/* Local Video */}
           <motion.div 
             layout 
             initial={{ opacity: 0, scale: 0.9 }} 
             animate={{ opacity: 1, scale: 1 }} 
-            className="rounded-2xl overflow-hidden glass-panel border-primary/30 relative group min-h-[250px]"
+            className="rounded-xl xs:rounded-2xl overflow-hidden glass-panel border-primary/30 relative group aspect-video min-h-0"
           >
             <video 
               ref={localVideoRef} 
@@ -113,13 +127,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             />
             {isVideoOff && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-                <div className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center text-2xl font-bold tracking-widest">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl sm:text-2xl font-bold tracking-widest">
                   YOU
                 </div>
               </div>
             )}
-            <div className="absolute bottom-4 left-4 px-3 py-1 rounded-lg glass-panel bg-black/60 text-sm font-medium flex items-center gap-2">
-               You {isMuted && <MicOff size={14} className="text-red-400" />}
+            <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 px-2 py-1 rounded-lg glass-panel bg-black/60 text-[10px] sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2">
+               You {isMuted && <MicOff size={12} className="text-red-400" />}
             </div>
           </motion.div>
 
@@ -130,11 +144,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               key={userId} 
-              className="rounded-2xl overflow-hidden glass-panel relative group min-h-[250px]"
+              className="rounded-xl xs:rounded-2xl overflow-hidden glass-panel relative group aspect-video min-h-0"
             >
               <VideoRenderer stream={stream} />
-              <div className="absolute bottom-4 left-4 px-3 py-1 rounded-lg glass-panel bg-black/60 text-sm font-medium">
-                Participant
+              {participantStatus[userId]?.isVideoOff && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-500/20 text-gray-300 flex items-center justify-center text-xl sm:text-2xl font-bold tracking-widest">
+                    U
+                  </div>
+                </div>
+              )}
+              <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 px-2 py-1 rounded-lg glass-panel bg-black/60 text-[10px] sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2">
+                Participant {participantStatus[userId]?.isMuted && <MicOff size={12} className="text-red-400" />}
               </div>
             </motion.div>
           ))}
@@ -145,10 +166,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         <AnimatePresence>
            {activeTab !== "none" && (
               <motion.div 
-                 initial={{ width: 0, opacity: 0 }}
-                 animate={{ width: 320, opacity: 1 }}
-                 exit={{ width: 0, opacity: 0 }}
-                 className="h-full glass-panel flex flex-col overflow-hidden shrink-0"
+                 initial={{ x: "100%", opacity: 0 }}
+                 animate={{ x: 0, opacity: 1 }}
+                 exit={{ x: "100%", opacity: 0 }}
+                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                 className="fixed inset-0 z-[100] md:relative md:inset-auto md:h-full md:w-80 glass-panel md:rounded-2xl rounded-none flex flex-col overflow-hidden shrink-0 border-y-0 border-r-0 md:border-y md:border-r bg-background/95 md:bg-surface/60 backdrop-blur-xl"
               >
                   <div className="p-4 border-b border-white/10 font-medium flex justify-between items-center">
                      {activeTab === 'chat' ? 'Meeting Chat' : 'Participants'}
@@ -184,6 +206,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
                                     <div className="w-8 h-8 rounded-full bg-gray-500/20 text-gray-300 flex items-center justify-center text-xs">U</div>
                                     <span className="text-sm">Participant</span>
                                  </div>
+                                 <Mic size={14} className={participantStatus[userId]?.isMuted ? "text-red-500" : "text-green-500"}/>
                               </div>
                            ))}
                         </div>
@@ -211,38 +234,36 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       </main>
 
       {/* Bottom Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel shadow-2xl px-6 py-3 rounded-full flex items-center gap-4 z-50">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 glass-panel shadow-2xl px-3 sm:px-6 py-2 sm:py-3 rounded-full flex items-center gap-2 sm:gap-4 z-50 max-w-[95vw] sm:max-w-none overflow-x-auto no-scrollbar">
         
-        <ControlBtn active={isMuted} danger={isMuted} onClick={toggleMute} icon={isMuted ? <MicOff /> : <Mic />} label="Mic" />
-        <ControlBtn active={isVideoOff} danger={isVideoOff} onClick={toggleVideo} icon={isVideoOff ? <VideoOff /> : <Video />} label="Video" />
+        <ControlBtn active={isMuted} danger={isMuted} onClick={toggleMute} icon={isMuted ? <MicOff size={20} /> : <Mic size={20} />} label="Mic" />
+        <ControlBtn active={isVideoOff} danger={isVideoOff} onClick={toggleVideo} icon={isVideoOff ? <VideoOff size={20} /> : <Video size={20} />} label="Video" />
         
-        <div className="w-px h-8 bg-white/10 mx-2"></div>
+        <div className="w-px h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2 shrink-0"></div>
         
-        <ControlBtn icon={<MonitorUp />} label="Share" onClick={() => {}} />
-        <ControlBtn icon={<Smile />} label="React" onClick={() => {}} />
-        <ControlBtn icon={<Hand />} label="Raise" onClick={() => {}} />
+        <ControlBtn icon={<MonitorUp size={20} />} label="Share" onClick={() => {}} />
+        <ControlBtn icon={<Smile size={20} />} label="React" onClick={() => {}} />
+        <ControlBtn icon={<Hand size={20} />} label="Raise" onClick={() => {}} className="hidden xs:flex" />
 
-        <div className="w-px h-8 bg-white/10 mx-2"></div>
+        <div className="w-px h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2 shrink-0"></div>
 
         <button 
           onClick={() => router.push('/')}
-          className="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-[0_0_15px_rgba(239,68,68,0.5)] transition hover:scale-105 group-hover:block"
+          className="bg-red-500 hover:bg-red-600 text-white rounded-full p-3 sm:p-4 shadow-[0_0_15px_rgba(239,68,68,0.5)] transition hover:scale-105 shrink-0"
         >
-          <PhoneOff size={24} />
+          <PhoneOff className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
-
       </div>
     </div>
   );
 }
 
-const ControlBtn = ({ icon, label, onClick, active, danger }: any) => (
+const ControlBtn = ({ icon, label, onClick, active, danger, className }: any) => (
   <button 
     onClick={onClick}
-    className={`p-3 sm:p-4 rounded-full transition-all group relative border ${danger ? 'bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30' : active ? 'bg-primary/20 text-primary border-primary/50' : 'bg-white/5 border-white/5 hover:bg-white/10 text-gray-300 hover:text-white'}`}
+    className={`p-2.5 sm:p-4 rounded-full transition-all group relative border shrink-0 ${danger ? 'bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30' : active ? 'bg-primary/20 text-primary border-primary/50' : 'bg-white/5 border-white/5 hover:bg-white/10 text-gray-300 hover:text-white'} ${className}`}
   >
-    <div className="w-5 h-5 sm:w-6 sm:h-6">{icon}</div>
-    {/* Tooltip hidden, keeping it simple */}
+    <div className="flex items-center justify-center">{icon}</div>
   </button>
 )
 

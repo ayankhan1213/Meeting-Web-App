@@ -11,6 +11,8 @@
   --shadow-neon-secondary: 0 0 15px rgba(0, 229, 255, 0.5);
 
   --font-sans: "Inter", "Outfit", sans-serif;
+
+  --breakpoint-xs: 480px;
 }
 
 @layer base {
