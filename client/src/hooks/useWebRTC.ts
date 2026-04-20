@@ -116,50 +116,52 @@ export const useWebRTC = (roomId: string) => {
         localStreamRef.current = stream;
         setLocalStream(stream);
         
-      socket.current.on('connect', () => {
-        console.log('Connected to signaling server:', socket.current?.id);
-        if (socket.current?.id) {
-          socket.current.emit('join-room', roomId, socket.current.id);
-        }
-      });
-
-      socket.current.on('user-connected', async (userId: string) => {
-        console.log('New user connected:', userId);
-        const peerConnection = createPeerConnection(userId);
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.current?.emit('offer', { target: userId, sdp: offer });
-      });
-
-      socket.current.on('offer', async (payload: any) => {
-        console.log('Offer received from:', payload.from);
-        const peerConnection = createPeerConnection(payload.from);
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        
-        socket.current?.emit('answer', { target: payload.from, sdp: answer });
-      });
-
-      socket.current.on('answer', async (payload: any) => {
-        console.log('Answer received from:', payload.from);
-        const pc = peers.current[payload.from];
-        if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        }
-      });
-
-      socket.current.on('ice-candidate', async (payload: any) => {
-        const pc = peers.current[payload.from];
-        if (pc && payload.candidate) {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-          } catch (e) {
-            console.error('Error adding ice candidate:', e);
+      if (socket.current) {
+        socket.current.on('connect', () => {
+          console.log('Connected to signaling server:', socket.current?.id);
+          if (socket.current?.id) {
+            socket.current.emit('join-room', roomId, socket.current.id);
           }
-        }
-      });
+        });
+
+        socket.current.on('user-connected', async (userId: string) => {
+          console.log('New user connected:', userId);
+          const peerConnection = createPeerConnection(userId);
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          socket.current?.emit('offer', { target: userId, sdp: offer });
+        });
+
+        socket.current.on('offer', async (payload: { from: string; sdp: RTCSessionDescriptionInit }) => {
+          console.log('Offer received from:', payload.from);
+          const peerConnection = createPeerConnection(payload.from);
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          
+          socket.current?.emit('answer', { target: payload.from, sdp: answer });
+        });
+
+        socket.current.on('answer', async (payload: { from: string; sdp: RTCSessionDescriptionInit }) => {
+          console.log('Answer received from:', payload.from);
+          const pc = peers.current[payload.from];
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          }
+        });
+
+        socket.current.on('ice-candidate', async (payload: { from: string; candidate: RTCIceCandidateInit }) => {
+          const pc = peers.current[payload.from];
+          if (pc && payload.candidate) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+              console.error('Error adding ice candidate:', e);
+            }
+          }
+        });
+      }
 
         socket.current?.on('user-disconnected', (userId: string) => {
           console.log('User disconnected signal received:', userId);
