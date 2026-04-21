@@ -82,9 +82,10 @@ export default function Home() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => router.push('/dashboard')}
               className="px-8 py-4 rounded-xl font-medium tracking-wide bg-primary text-white shadow-neon-primary hover:shadow-[0_0_25px_rgba(227,89,39,0.7)] transition-all whitespace-nowrap"
             >
-              <Link href="/dashboard">Start a Meeting</Link>
+              Start a Meeting
             </motion.button>
             <div className="flex items-center glass-panel px-2 py-1 flex-1 min-w-0">
               <div className="w-10 h-full flex items-center justify-center text-gray-400 shrink-0">

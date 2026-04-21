@@ -18,7 +18,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     sendMessage,
     participantStatus,
     toggleRemoteMute,
-    toggleRemoteVideo 
+    toggleRemoteVideo,
+    isHost,
+    isWaiting,
+    joinRequests,
+    approveUser,
+    denyUser,
+    emojis,
+    sendEmoji
   } = useWebRTC(roomId);
   const router = useRouter();
   
@@ -233,6 +240,75 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
       </main>
 
+      {/* Floating Emojis */}
+      <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+        <AnimatePresence>
+          {emojis.map((emoji) => (
+            <FloatingEmoji key={emoji.id} emoji={emoji.emoji} />
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Join Request Notification (Host Only) */}
+      <div className="fixed top-20 right-6 z-[110] flex flex-col gap-3">
+        <AnimatePresence>
+          {isHost && joinRequests.map((req) => (
+            <motion.div
+              key={req.userId}
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 300, opacity: 0 }}
+              className="glass-panel p-4 w-72 shadow-2xl border-primary/50 bg-background/90 backdrop-blur-xl"
+            >
+              <p className="text-sm font-medium mb-3">
+                <span className="text-primary">{req.userName}</span> wants to join the meeting
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => approveUser(req.userId)}
+                  className="flex-1 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/80 transition-colors"
+                >
+                  Allow
+                </button>
+                <button 
+                  onClick={() => denyUser(req.userId)}
+                  className="flex-1 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-colors"
+                >
+                  Deny
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Waiting Lobby Overlay */}
+      <AnimatePresence>
+        {isWaiting && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mb-6 relative">
+               <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+               <Video className="text-primary w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Waiting for Host...</h2>
+            <p className="text-gray-400 max-w-sm mb-8">
+              The meeting host has been notified. You'll join as soon as they let you in.
+            </p>
+            <button 
+              onClick={() => router.push('/dashboard')}
+              className="px-6 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm"
+            >
+              Cancel & Leave
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Control Bar */}
       <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 glass-panel shadow-2xl px-3 sm:px-6 py-2 sm:py-3 rounded-full flex items-center gap-2 sm:gap-4 z-50 max-w-[95vw] sm:max-w-none overflow-x-auto no-scrollbar">
         
@@ -242,7 +318,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         <div className="w-px h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2 shrink-0"></div>
         
         <ControlBtn icon={<MonitorUp size={20} />} label="Share" onClick={() => {}} />
-        <ControlBtn icon={<Smile size={20} />} label="React" onClick={() => {}} />
+        <EmojiPicker onSelect={sendEmoji} />
         <ControlBtn icon={<Hand size={20} />} label="Raise" onClick={() => {}} className="hidden xs:flex" />
 
         <div className="w-px h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2 shrink-0"></div>
@@ -257,6 +333,62 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     </div>
   );
 }
+
+const EmojiPicker = ({ onSelect }: { onSelect: (emoji: string) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const emojis = ["👍", "❤️", "😂", "👏", "🔥", "😮"];
+
+  return (
+    <div className="relative">
+      <ControlBtn 
+        icon={<Smile size={20} />} 
+        label="React" 
+        onClick={() => setIsOpen(!isOpen)} 
+        active={isOpen}
+      />
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ y: 20, opacity: 0, scale: 0.8 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 20, opacity: 0, scale: 0.8 }}
+            className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 glass-panel p-2 flex gap-2 shadow-2xl"
+          >
+            {emojis.map(e => (
+              <button 
+                key={e} 
+                onClick={() => { onSelect(e); setIsOpen(false); }}
+                className="text-2xl hover:scale-125 transition-transform p-1"
+              >
+                {e}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const FloatingEmoji = ({ emoji }: { emoji: string }) => {
+  const randomX = useState(Math.random() * 80 + 10)[0];
+  
+  return (
+    <motion.div
+      initial={{ y: "100vh", x: `${randomX}vw`, opacity: 0, scale: 0.5 }}
+      animate={{ 
+        y: "-10vh", 
+        opacity: [0, 1, 1, 0],
+        scale: [0.5, 1.2, 1.2, 0.8],
+        rotate: [0, -10, 10, 0]
+      }}
+      transition={{ duration: 4, ease: "easeOut" }}
+      className="absolute text-5xl"
+    >
+      {emoji}
+    </motion.div>
+  );
+};
 
 const ControlBtn = ({ icon, label, onClick, active, danger, className }: any) => (
   <button 
