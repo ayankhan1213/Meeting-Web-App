@@ -38,8 +38,8 @@ export function VideoTile({
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className={`relative rounded-2xl overflow-hidden bg-[#0d1117] border aspect-video group
-        ${isSpeaking ? "border-primary shadow-neon-primary" : "border-white/8"}
+      className={`relative rounded-2xl overflow-hidden bg-[#0d1117] border aspect-video group transition-all duration-300
+        ${raisedHand ? "border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.4)]" : isSpeaking ? "border-primary shadow-neon-primary" : "border-white/8"}
       `}
     >
       {/* Video element */}
@@ -73,11 +73,17 @@ export function VideoTile({
       {/* Raised hand badge */}
       {raisedHand && (
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg"
+          initial={{ scale: 0, y: 10 }}
+          animate={{ scale: 1, y: 0 }}
+          className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-yellow-400 text-black px-3 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.6)]"
         >
-          <Hand size={14} className="text-black" fill="currentColor" />
+          <motion.div
+            animate={{ rotate: [0, -20, 20, -20, 20, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+          >
+            <Hand size={14} fill="currentColor" />
+          </motion.div>
+          <span className="text-xs font-bold tracking-tight">Hand Raised</span>
         </motion.div>
       )}
 

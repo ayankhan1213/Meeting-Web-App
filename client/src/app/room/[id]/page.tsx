@@ -78,6 +78,24 @@ function DeniedOverlay({ onLeave }: { onLeave: () => void }) {
   );
 }
 
+// ── Room-not-found overlay ────────────────────────────────────────────────────
+function NotFoundOverlay({ onLeave }: { onLeave: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[300] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center gap-6 text-center p-6">
+      <div className="w-16 h-16 rounded-full bg-gray-500/20 flex items-center justify-center">
+        <span className="text-3xl">❓</span>
+      </div>
+      <h2 className="text-2xl font-bold text-white">Room Not Found</h2>
+      <p className="text-gray-400 max-w-sm">
+        The meeting room you are trying to join does not exist or has ended.
+      </p>
+      <button onClick={onLeave} className="btn-primary cursor-pointer">
+        Back to Home
+      </button>
+    </div>
+  );
+}
+
 // ── Waiting lobby overlay ─────────────────────────────────────────────────────
 function WaitingOverlay({ onCancel }: { onCancel: () => void }) {
   return (
@@ -155,16 +173,39 @@ function JoinRequestToasts({
 
 // ── Floating emoji reactions ──────────────────────────────────────────────────
 function FloatingEmoji({ emoji }: { emoji: string }) {
-  const x = useState(() => Math.random() * 70 + 15)[0];
+  // Generate a burst of 3 configs for each emoji sent
+  const configs = useState(() =>
+    Array.from({ length: 3 }).map((_, i) => ({
+      id: Math.random().toString(),
+      xBase: Math.random() * 60 + 20, // 20vw to 80vw
+      xDrift: (Math.random() - 0.5) * 30, // Random drift left/right
+      delay: i * 0.15, // Staggered entry
+      duration: 2.5 + Math.random() * 1.5,
+      scale: 0.8 + Math.random() * 0.7,
+      rotate: (Math.random() - 0.5) * 90,
+    }))
+  )[0];
+
   return (
-    <motion.div
-      initial={{ y: "100vh", x: `${x}vw`, opacity: 0, scale: 0.5 }}
-      animate={{ y: "-5vh", opacity: [0, 1, 1, 0], scale: [0.5, 1.3, 1.2, 0.8] }}
-      transition={{ duration: 3.5, ease: "easeOut" }}
-      className="fixed text-5xl pointer-events-none z-[90]"
-    >
-      {emoji}
-    </motion.div>
+    <>
+      {configs.map((c) => (
+        <motion.div
+          key={c.id}
+          initial={{ y: "100vh", x: `${c.xBase}vw`, opacity: 0, scale: 0, rotate: 0 }}
+          animate={{
+            y: "-10vh",
+            x: `${c.xBase + c.xDrift}vw`,
+            opacity: [0, 1, 1, 0],
+            scale: [0, c.scale * 1.3, c.scale, c.scale * 0.8],
+            rotate: c.rotate,
+          }}
+          transition={{ duration: c.duration, delay: c.delay, ease: "easeOut" }}
+          className="fixed text-5xl pointer-events-none z-[150] drop-shadow-2xl"
+        >
+          {emoji}
+        </motion.div>
+      ))}
+    </>
   );
 }
 
@@ -178,13 +219,22 @@ function gridClass(total: number) {
 }
 
 // ── MAIN PAGE ────────────────────────────────────────────────────────────────
-export default function RoomPage({ params }: { params: Promise<{ id: string }> }) {
+export default function RoomPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const { id: roomId } = use(params);
+  const resolvedSearchParams = use(searchParams);
+  const actionParam = (resolvedSearchParams.action as string) || "join";
   const router = useRouter();
 
   // Check if name is stored; if not, show name-entry first
   const [nameReady, setNameReady] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [activeTab, setActiveTab] = useState<"none" | "chat" | "users">("none");
@@ -199,8 +249,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // Listen for join-denied event
   useEffect(() => {
     const handler = () => setDenied(true);
+    const notFoundHandler = () => setNotFound(true);
     window.addEventListener("meetspace:join-denied", handler);
-    return () => window.removeEventListener("meetspace:join-denied", handler);
+    window.addEventListener("meetspace:room-not-found", notFoundHandler);
+    return () => {
+      window.removeEventListener("meetspace:join-denied", handler);
+      window.removeEventListener("meetspace:room-not-found", notFoundHandler);
+    };
   }, []);
 
   const {
@@ -223,7 +278,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     denyUser,
     toggleRemoteMute,
     toggleRemoteVideo,
-  } = useWebRTC(nameReady ? roomId : "");
+  } = useWebRTC(nameReady ? roomId : "", actionParam);
 
   const handleToggleMute = useCallback(() => {
     const next = !isMuted;
@@ -253,13 +308,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   if (!nameReady) {
     return <NameEntryModal onConfirm={() => setNameReady(true)} />;
   }
+  if (notFound) {
+    return <NotFoundOverlay onLeave={() => router.push("/")} />;
+  }
   if (denied) {
     return <DeniedOverlay onLeave={() => router.push("/")} />;
   }
 
   const displayName = userName || sessionStorage.getItem("meetspace_username") || "You";
-  const remoteEntries = Object.entries(remoteStreams);
-  const totalTiles = 1 + remoteEntries.length;
+  const totalTiles = 1 + participants.length;
   const participantCount = participants.length + 1;
 
   return (
@@ -330,10 +387,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
               raisedHand={raisedHands["self"]}
             />
             {/* Remote tiles */}
-            {remoteEntries.map(([uid, stream]) => (
+            {participants.map((uid) => (
               <VideoTile
                 key={uid}
-                stream={stream}
+                stream={remoteStreams[uid] || null}
                 name={participantNames[uid] || "Participant"}
                 isMuted={participantStatus[uid]?.isMuted}
                 isVideoOff={participantStatus[uid]?.isVideoOff}

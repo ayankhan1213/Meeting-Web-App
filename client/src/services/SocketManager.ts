@@ -24,7 +24,7 @@ class SocketManagerService {
   private initialized  = false;
 
   // ── PUBLIC: initialize ──────────────────────────────────────────────────────
-  public initialize(roomId: string, userName: string) {
+  public initialize(roomId: string, userName: string, action: string = 'join') {
     // Guard: same room + same name + already connected → do nothing
     if (
       this.initialized &&
@@ -52,11 +52,11 @@ class SocketManagerService {
     });
 
     this.setupSocketListeners();
-    this.initMediaThenJoin(roomId);
+    this.initMediaThenJoin(roomId, action);
   }
 
   // ── PRIVATE: media then emit join ───────────────────────────────────────────
-  private async initMediaThenJoin(attemptRoomId: string) {
+  private async initMediaThenJoin(attemptRoomId: string, action: string) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
@@ -76,8 +76,8 @@ class SocketManagerService {
 
     // Emit join once socket is connected
     const emitJoin = () => {
-      console.log(`[Socket] emitting join-room: ${this.roomId} as "${this.userName}"`);
-      this.socket?.emit('join-room', this.roomId, this.userName);
+      console.log(`[Socket] emitting join-room: ${this.roomId} as "${this.userName}" with action "${action}"`);
+      this.socket?.emit('join-room', this.roomId, this.userName, action);
     };
 
     if (this.socket?.connected) {
@@ -165,6 +165,12 @@ class SocketManagerService {
     this.socket.on('join-denied', () => {
       store().setIsWaiting(false);
       window.dispatchEvent(new CustomEvent('meetspace:join-denied'));
+    });
+
+    // ── Room: not found ──────────────────────────────────────────────────────
+    this.socket.on('room-not-found', () => {
+      store().setIsWaiting(false);
+      window.dispatchEvent(new CustomEvent('meetspace:room-not-found'));
     });
 
     // ── Room: host transfer ──────────────────────────────────────────────────

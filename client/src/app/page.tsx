@@ -168,7 +168,7 @@ export default function HomePage() {
     sessionStorage.setItem("meetspace_username", name);
     if (modal === "create") {
       const roomId = generateRoomId();
-      router.push(`/room/${roomId}`);
+      router.push(`/room/${roomId}?action=create`);
     } else if (code) {
       const extracted = code.includes("/") ? code.split("/").pop()! : code;
       router.push(`/room/${extracted}`);

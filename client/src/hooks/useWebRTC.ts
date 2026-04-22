@@ -7,7 +7,7 @@ import { useMeetingStore } from '../store/useMeetingStore';
  * Reads the display name from sessionStorage and passes it to SocketManager.
  * Cleans up on unmount (page leave / route change).
  */
-export const useWebRTC = (roomId: string) => {
+export const useWebRTC = (roomId: string, action: string = 'join') => {
   const store = useMeetingStore();
   // Use a ref so the cleanup closure always has the latest value
   const roomIdRef = useRef(roomId);
@@ -28,7 +28,7 @@ export const useWebRTC = (roomId: string) => {
     store.setUserName(userName);
 
     // ── Initialize socket + media + join ─────────────────────────────────────
-    SocketManager.initialize(roomId, userName);
+    SocketManager.initialize(roomId, userName, action);
 
     // ── Cleanup: runs when navigating away or component unmounts ─────────────
     return () => {
