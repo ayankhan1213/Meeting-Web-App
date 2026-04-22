@@ -147,9 +147,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       participantStatus: {
         ...state.participantStatus,
         [userId]: {
-          isMuted: false,
-          isVideoOff: false,
-          ...state.participantStatus[userId],
+          ...(state.participantStatus[userId] || { isMuted: false, isVideoOff: false }),
           ...status,
         },
       },
