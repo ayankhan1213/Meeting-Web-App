@@ -1,127 +1,287 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Plus, Link as LinkIcon, Calendar, Clock, Video } from "lucide-react";
-import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  Plus,
+  Link as LinkIcon,
+  Video,
+  Users,
+  Clock,
+  ArrowRight,
+  Copy,
+  Check,
+} from "lucide-react";
+import Link from "next/link";
+
+function generateRoomId(): string {
+  const seg = () => Math.random().toString(36).substring(2, 6);
+  return `${seg()}-${seg()}-${seg()}`;
+}
+
+function getUserName(): string {
+  return sessionStorage.getItem("meetspace_username") || "";
+}
+
+// ── Name prompt modal (shown if name not yet set) ─────────────────────────────
+function NamePrompt({
+  onConfirm,
+}: {
+  onConfirm: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="glass-panel-2 w-full max-w-sm p-8"
+      >
+        <h2 className="font-bold text-xl text-white mb-1">Welcome back!</h2>
+        <p className="text-gray-400 text-sm mb-6">
+          What should we call you in meetings?
+        </p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) onConfirm(name.trim());
+          }}
+          className="flex flex-col gap-4"
+        >
+          <input
+            id="dashboard-name-input"
+            autoFocus
+            type="text"
+            placeholder="Your display name"
+            maxLength={40}
+            className="input-field"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            Continue <ArrowRight size={16} />
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
-  const [meetingCode, setMeetingCode] = useState("");
-  const [currentTime, setCurrentTime] = useState("");
   const router = useRouter();
+  const [meetingCode, setMeetingCode] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("meetspace_username") || "";
+    }
+    return "";
+  });
 
-  useEffect(() => {
-    setCurrentTime(new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-  }, []);
+  const handleNameSet = (name: string) => {
+    sessionStorage.setItem("meetspace_username", name);
+    setUserName(name);
+  };
 
-  const handleCreateMeeting = () => {
-    // Basic meeting generation for demo
-    const code = Math.random().toString(36).substring(2, 9);
+  const handleCreate = () => {
+    const code = generateRoomId();
     router.push(`/room/${code}`);
   };
 
-  const handleJoinMeeting = () => {
-    if(meetingCode) {
-      const extractedCode = meetingCode.includes('/') ? meetingCode.split('/').pop() : meetingCode;
-      if (extractedCode) router.push(`/room/${extractedCode}`);
-    }
+  const handleJoin = () => {
+    if (!meetingCode.trim()) return;
+    const extracted = meetingCode.includes("/")
+      ? meetingCode.split("/").pop()!
+      : meetingCode.trim();
+    router.push(`/room/${extracted}`);
+  };
+
+  const handleCopyDemo = (code: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/room/${code}`);
+    setCopied(code);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const avatarInitial = userName.charAt(0).toUpperCase() || "?";
+
+  const recentMeetings = [
+    { id: "proj-alpha", name: "Project Alpha Sync", time: "Today, 09:00 AM", participants: 4 },
+    { id: "design-review", name: "Design Review", time: "Yesterday, 2:30 PM", participants: 6 },
+    { id: "team-standup", name: "Team Standup", time: "Mon, 10:00 AM", participants: 8 },
+  ];
+
+  if (!userName) {
+    return <NamePrompt onConfirm={handleNameSet} />;
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col grid-bg">
+      {/* Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-secondary/8 rounded-full blur-[120px] pointer-events-none" />
 
+      {/* Navbar */}
       <nav className="h-16 glass-panel border-x-0 border-t-0 rounded-none px-6 flex items-center justify-between z-10 shrink-0 relative">
-         <div className="flex items-center gap-2">
-          <Link href="/">
-            <div className="flex flex-row items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Video size={18} className="text-white" />
-              </div>
-              <span className="font-bold text-xl tracking-tight hidden sm:block">Meet<span className="text-primary">Edu</span></span>
-            </div>
-          </Link>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="w-8 h-8 rounded-full bg-white/10 uppercase font-bold text-sm flex items-center justify-center">U</div>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl avatar-gradient flex items-center justify-center">
+            <Video size={16} className="text-white" />
+          </div>
+          <span className="font-bold text-lg tracking-tight hidden sm:block">
+            Meet<span className="text-gradient">Space</span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400 hidden sm:block">{userName}</span>
+          <div className="w-9 h-9 rounded-full avatar-gradient flex items-center justify-center font-bold text-sm text-white shadow-neon-primary">
+            {avatarInitial}
+          </div>
         </div>
       </nav>
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-12 max-w-6xl w-full mx-auto relative z-10">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6 sm:mb-8 gap-4 sm:gap-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-white">Welcome Back</h1>
-            <p className="text-gray-400 text-sm sm:text-base">Ready for your next session?</p>
-          </div>
-          <p className="text-lg sm:text-xl font-medium text-secondary/80">{currentTime}</p>
-        </div>
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-6xl w-full mx-auto relative z-10">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 mt-2"
+        >
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            Good{" "}
+            {new Date().getHours() < 12
+              ? "Morning"
+              : new Date().getHours() < 18
+              ? "Afternoon"
+              : "Evening"}
+            , <span className="text-gradient">{userName}</span> 👋
+          </h1>
+          <p className="text-gray-400 mt-1">Ready for your next session?</p>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          {/* Create Meeting */}
-          <motion.div 
-             whileHover={{ scale: 1.02 }}
-             className="glass-panel p-6 sm:p-8 flex flex-col justify-between min-h-[12rem] cursor-pointer relative overflow-hidden group"
-             onClick={handleCreateMeeting}
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10">
+          {/* Create */}
+          <motion.button
+            id="create-meeting-btn"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleCreate}
+            className="glass-panel p-7 flex flex-col justify-between min-h-[10rem] text-left relative overflow-hidden group cursor-pointer border-primary/20"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-[50px] transform translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700"></div>
-            <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center mb-4">
-               <Plus size={24} />
+            <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[60px] transform translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
+            <div className="w-12 h-12 rounded-xl avatar-gradient flex items-center justify-center mb-4 shadow-neon-primary">
+              <Plus size={22} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold">New Meeting</h2>
-              <p className="text-gray-400 text-xs sm:text-sm">Start an instant meeting</p>
+              <h2 className="text-lg font-bold text-white">New Meeting</h2>
+              <p className="text-gray-400 text-sm mt-1">
+                Start an instant room — you become the host
+              </p>
+            </div>
+          </motion.button>
+
+          {/* Join */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-panel p-7 flex flex-col justify-between min-h-[10rem] relative overflow-hidden border-secondary/20"
+          >
+            <div className="absolute top-0 right-0 w-40 h-40 bg-secondary/10 rounded-full blur-[60px] transform translate-x-10 -translate-y-10 pointer-events-none" />
+            <div className="w-12 h-12 rounded-xl bg-secondary/20 border border-secondary/30 text-secondary flex items-center justify-center mb-4">
+              <LinkIcon size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white mb-3">
+                Join Meeting
+              </h2>
+              <div className="flex gap-2">
+                <input
+                  id="join-code-input"
+                  type="text"
+                  placeholder="Meeting code or link..."
+                  className="input-field text-sm py-2.5"
+                  value={meetingCode}
+                  onChange={(e) => setMeetingCode(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                />
+                <button
+                  id="join-meeting-btn"
+                  disabled={!meetingCode.trim()}
+                  onClick={handleJoin}
+                  className="btn-primary px-4 py-2.5 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none cursor-pointer"
+                >
+                  Join
+                </button>
+              </div>
             </div>
           </motion.div>
+        </div>
 
-          {/* Join Meeting */}
-          <motion.div 
-             className="glass-panel p-6 sm:p-8 flex flex-col justify-between min-h-[12rem] relative overflow-hidden"
-          >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/10 text-white flex items-center justify-center mb-4 border border-white/5">
-               <LinkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="flex flex-col xs:flex-row items-stretch xs:items-end gap-3 sm:gap-4 w-full">
-              <div className="flex-1">
-                <h2 className="text-lg sm:text-xl font-semibold mb-2">Join Meeting</h2>
-                <div className="flex items-center bg-black/40 rounded-lg px-3 py-2 border border-white/10 focus-within:border-primary/50 transition-colors">
-                  <input 
-                    type="text" 
-                    placeholder="Enter code"
-                    className="bg-transparent border-none outline-none w-full text-sm block placeholder:text-gray-500"
-                    value={meetingCode}
-                    onChange={(e) => setMeetingCode(e.target.value)}
-                  />
+        {/* Recent Meetings */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Clock size={18} className="text-primary-light" />
+            Recent Meetings
+          </h2>
+          <div className="glass-panel divide-y divide-white/5">
+            {recentMeetings.map((meeting, idx) => (
+              <div
+                key={meeting.id}
+                className="p-4 flex items-center justify-between hover:bg-white/3 transition-colors group"
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary-light flex items-center justify-center shrink-0">
+                    <Video size={16} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-white text-sm">
+                      {meeting.name}
+                    </p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                      <Clock size={10} />
+                      {meeting.time}
+                      <span className="mx-1 text-gray-600">·</span>
+                      <Users size={10} />
+                      {meeting.participants} participants
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleCopyDemo(meeting.id)}
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                    title="Copy link"
+                  >
+                    {copied === meeting.id ? (
+                      <Check size={14} className="text-success" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => router.push(`/room/${meeting.id}`)}
+                    className="px-3 py-1.5 btn-primary text-xs cursor-pointer"
+                  >
+                    Rejoin
+                  </button>
                 </div>
               </div>
-              <button 
-                disabled={!meetingCode}
-                onClick={handleJoinMeeting}
-                className="px-4 py-2.5 bg-white text-black font-semibold rounded-lg text-sm hover:bg-gray-200 transition disabled:opacity-50 disabled:bg-white/10 disabled:text-white/50 h-fit"
-              >
-                Join
-              </button>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Schedule */}
-        <h2 className="text-lg sm:text-xl font-semibold mb-4">Upcoming Schedule</h2>
-        <div className="glass-panel p-1 sm:p-2 flex flex-col gap-1 sm:gap-2">
-           <div className="p-3 sm:p-4 rounded-xl flex items-center justify-between hover:bg-white/5 transition cursor-pointer gap-2">
-              <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
-                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-secondary/20 text-secondary flex items-center justify-center shrink-0">
-                    <Calendar size={20} />
-                 </div>
-                 <div className="overflow-hidden">
-                   <h3 className="font-semibold text-base sm:text-lg truncate">Advanced System Design</h3>
-                   <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2 whitespace-nowrap"><Clock size={12}/> 14:00 PM - 15:30 PM</p>
-                 </div>
-              </div>
-              <button className="px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 rounded-lg text-xs sm:text-sm font-medium hover:bg-white/5 transition hidden xs:block shrink-0">Details</button>
-           </div>
-        </div>
-
+            ))}
+          </div>
+        </motion.div>
       </main>
     </div>
   );
