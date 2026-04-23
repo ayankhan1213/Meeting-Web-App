@@ -3,11 +3,15 @@ import { roomManager } from '../services/RoomManager';
 
 export const handleRoomEvents = (io: Server, socket: Socket) => {
   // ── JOIN ─────────────────────────────────────────────────────────────────
-  socket.on('join-room', (roomId: string, rawName: string) => {
+  socket.on('join-room', (roomId: string, rawName: string, action: string = 'join') => {
     const userName = (rawName || 'Anonymous').trim().substring(0, 50);
     let room = roomManager.getRoom(roomId);
 
     if (!room) {
+      if (action !== 'create') {
+        socket.emit('room-not-found', { roomId });
+        return;
+      }
       // First user → becomes HOST
       room = roomManager.createRoom(roomId, socket.id, userName);
       socket.join(roomId);
