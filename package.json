@@ -2,7 +2,7 @@
   "name": "meeting-web-app",
   "private": true,
   "scripts": {
-    "build": "cd server && npm install && npm run build",
-    "start": "cd server && npm start"
+    "build": "echo 'Building via railway.json'",
+    "start": "echo 'Starting via railway.json'"
   }
 }
